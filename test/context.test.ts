@@ -73,6 +73,10 @@ test("buildRecentConversationContext returns empty context for invalid limits", 
   assert.equal(buildRecentConversationContext(branch, { maxChars: -1 }), "");
   assert.equal(buildRecentConversationContext(branch, { maxMessages: Number.NaN }), "");
   assert.equal(buildRecentConversationContext(branch, { maxChars: Number.NaN }), "");
+  assert.equal(buildRecentConversationContext(branch, { maxMessages: Number.POSITIVE_INFINITY }), "");
+  assert.equal(buildRecentConversationContext(branch, { maxMessages: Number.NEGATIVE_INFINITY }), "");
+  assert.equal(buildRecentConversationContext(branch, { maxChars: Number.POSITIVE_INFINITY }), "");
+  assert.equal(buildRecentConversationContext(branch, { maxChars: Number.NEGATIVE_INFINITY }), "");
 });
 
 test("buildRecentConversationContext respects message and character limits", () => {
@@ -88,6 +92,19 @@ test("buildRecentConversationContext respects message and character limits", () 
   assert.match(context, /message-10/);
   assert.match(context, /message-11/);
   assert.ok(context.length <= 108);
+});
+
+test("buildRecentConversationContext truncates oversized context from the end", () => {
+  const entries = [
+    { type: "message", message: { role: "user", content: "alpha" } },
+    { type: "message", message: { role: "assistant", content: "bravo" } },
+    { type: "message", message: { role: "user", content: "charlie" } },
+  ];
+
+  const context = buildRecentConversationContext(entries, { maxMessages: 3, maxChars: 13 });
+
+  assert.equal(context, "[Recent conversation context]\nUser: charlie");
+  assert.match(context, /^\[Recent conversation context\]/);
 });
 
 test("buildFimPrompt combines instruction, context, and current draft", () => {
