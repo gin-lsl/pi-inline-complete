@@ -6,23 +6,33 @@ When you pause typing in pi, this extension sends the current draft plus recent 
 
 ## Install
 
-From a local checkout:
+### Prerequisites
+
+A [DeepSeek API key](https://platform.deepseek.com/api_keys) with access to the FIM completion beta.
+
+### Quick install
 
 ```bash
-pi install "$(pwd)"
+pi install git:github.com/gin-lsl/pi-inline-complete
 ```
 
-For development without installing:
+This installs the extension globally (available in all projects). To scope it to the current project only, add `-l`:
 
 ```bash
-pi -e "$(pwd)"
+pi install -l git:github.com/gin-lsl/pi-inline-complete
 ```
 
-After publishing to npm or pushing to git, install the npm or git package source with `pi install`.
+### Alternative source
+
+If you have the source cloned locally:
+
+```bash
+pi install /path/to/pi-inline-complete
+```
 
 ## Configuration
 
-The extension uses pi's built-in auth system to retrieve the DeepSeek API key. Configure it through pi's `/login` command, or set the `DEEPSEEK_API_KEY` environment variable.
+The extension uses pi's built-in auth system to retrieve the DeepSeek API key. Configure it through pi's `/login` command (select DeepSeek), or set the `DEEPSEEK_API_KEY` environment variable before launching pi.
 
 The first version uses fixed runtime settings:
 
@@ -72,7 +82,7 @@ Manual interactive verification:
 
 ```bash
 test -n "$DEEPSEEK_API_KEY"
-pi -e "$(pwd)"
+pi -e .
 ```
 
 Then type a prompt, pause for about 600 ms, confirm dim text appears after the cursor, and press `Tab` to accept it.
