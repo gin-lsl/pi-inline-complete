@@ -32,7 +32,9 @@ export function insertGhostText(
   const cursorReset = line.indexOf(SGR_RESET, cursorStart);
   if (cursorStart < 0 || cursorReset < 0) return renderedLines;
 
-  const insertAt = cursorReset + SGR_RESET.length;
+  const cursorText = line.slice(cursorStart + REVERSE_VIDEO_START.length, cursorReset);
+  const cursorHighlightsSuffix = stripAnsiAndControl(cursorText).trim().length > 0;
+  const insertAt = cursorHighlightsSuffix ? cursorStart : cursorReset + SGR_RESET.length;
   const beforeInsert = line.slice(0, insertAt);
   const afterInsert = line.slice(insertAt);
   const trailingPadding = afterInsert.match(/ *$/)?.[0] ?? "";

@@ -6,7 +6,10 @@ import { visibleWidth } from "@mariozechner/pi-tui";
 import { insertGhostText } from "../src/ghost-render.ts";
 
 const cursor = "\x1b[7m \x1b[0m";
+const cursorOverT = "\x1b[7mt\x1b[0m";
 const dim = (text: string) => `\x1b[2m${text}\x1b[22m`;
+const ansiSequencePattern = /\x1B\[[0-?]*[ -/]*[@-~]/g;
+const stripAnsi = (text: string) => text.replace(ansiSequencePattern, "");
 
 test("insertGhostText inserts ghost text after the fake cursor block", () => {
   const lines = [`hello${cursor}       `];
@@ -68,6 +71,34 @@ test("insertGhostText inserts ghost text before suffix text using trailing paddi
   assert.match(result[0] ?? "", /\x1b\[2m \+\+\x1b\[22mtail/);
   assert.match(result[0] ?? "", /tail/);
   assert.ok(visibleWidth(result[0] ?? "") <= visibleWidth(lines[0] ?? ""));
+});
+
+test("insertGhostText inserts ghost text before a highlighted suffix character", () => {
+  const lines = [`hello${cursorOverT}ail       `];
+  const result = insertGhostText(lines, " ghost", visibleWidth(lines[0] ?? ""), dim);
+  const rendered = result[0] ?? "";
+
+  assert.notStrictEqual(result, lines);
+  assert.match(rendered, /\x1b\[2m ghost\x1b\[22m\x1b\[7mt\x1b\[0mail/);
+  assert.ok(rendered.indexOf(dim(" ghost")) < rendered.indexOf(cursorOverT));
+  assert.ok(visibleWidth(rendered) <= visibleWidth(lines[0] ?? ""));
+});
+
+test("insertGhostText returns original lines when highlighted suffix character has no trailing padding", () => {
+  const lines = [`hello${cursorOverT}ail`];
+  const result = insertGhostText(lines, " ghost", visibleWidth(lines[0] ?? "") + 10, dim);
+
+  assert.strictEqual(result, lines);
+  assert.deepEqual(result, [`hello${cursorOverT}ail`]);
+});
+
+test("insertGhostText does not drop suffix content when prediction exceeds trailing padding", () => {
+  const lines = [`hello${cursorOverT}ail  `];
+  const result = insertGhostText(lines, " ghost", visibleWidth(lines[0] ?? ""), dim);
+  const rendered = result[0] ?? "";
+
+  assert.match(stripAnsi(rendered), /tail/);
+  assert.ok(visibleWidth(rendered) <= visibleWidth(lines[0] ?? ""));
 });
 
 test("insertGhostText strips ANSI and control sequences from prediction text", () => {
