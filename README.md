@@ -22,7 +22,7 @@ After publishing to npm or pushing to git, install the npm or git package source
 
 ## Configuration
 
-Set `DEEPSEEK_API_KEY` to your actual DeepSeek API key before starting pi.
+The extension uses pi's built-in auth system to retrieve the DeepSeek API key. Configure it through pi's `/login` command, or set the `DEEPSEEK_API_KEY` environment variable.
 
 The first version uses fixed runtime settings:
 

@@ -28,7 +28,6 @@ export interface InlineCompletionEditorOptions {
   minNonWhitespace?: number;
   backoffMs?: number;
   autoRequest?: boolean;
-  requireDeepSeekApiKey?: boolean;
 }
 
 function isAbortError(error: unknown): boolean {
@@ -44,7 +43,6 @@ export class InlineCompletionEditor extends CustomEditor {
   private readonly minNonWhitespace: number;
   private readonly backoffMs: number;
   private readonly autoRequest: boolean;
-  private readonly requireDeepSeekApiKey: boolean;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private abortController: AbortController | undefined;
   private requestId = 0;
@@ -71,7 +69,6 @@ export class InlineCompletionEditor extends CustomEditor {
     this.minNonWhitespace = options.minNonWhitespace ?? DEFAULT_MIN_NON_WHITESPACE;
     this.backoffMs = options.backoffMs ?? DEFAULT_BACKOFF_MS;
     this.autoRequest = options.autoRequest ?? true;
-    this.requireDeepSeekApiKey = options.requireDeepSeekApiKey ?? false;
   }
 
   setPredictionForTest(text: string): void {
@@ -165,10 +162,6 @@ export class InlineCompletionEditor extends CustomEditor {
     if (Date.now() < this.backoffUntil) return false;
     if (!this.ctx.isIdle()) return false;
     if (!hasEnoughInput(snapshot.text, this.minNonWhitespace)) return false;
-    if (this.requireDeepSeekApiKey && !process.env.DEEPSEEK_API_KEY) {
-      this.notifyOnce("missing-key", "inline-complete: set DEEPSEEK_API_KEY to enable predictions.", "warning");
-      return false;
-    }
     return true;
   }
 
@@ -199,7 +192,7 @@ export class InlineCompletionEditor extends CustomEditor {
       if (isAbortError(error)) return;
       if (error instanceof DeepSeekAuthError) {
         this.authDisabled = true;
-        this.notifyOnce("auth", "inline-complete: DeepSeek rejected DEEPSEEK_API_KEY; predictions paused.", "error");
+        this.notifyOnce("auth", "inline-complete: DeepSeek rejected the API key; predictions paused.", "error");
         return;
       }
       this.backoffUntil = Date.now() + this.backoffMs;
@@ -230,13 +223,16 @@ export class InlineCompletionEditor extends CustomEditor {
   }
 }
 
-export function installInlineCompletion(ctx: ExtensionContext, predictionService?: PredictionService): void {
+export async function installInlineCompletion(ctx: ExtensionContext, predictionService?: PredictionService): Promise<void> {
   if (!ctx.hasUI) return;
 
-  const service = predictionService ?? new DeepSeekFimClient();
-  const requireDeepSeekApiKey = predictionService === undefined;
+  let service = predictionService;
+  if (!service) {
+    const apiKey = await ctx.modelRegistry.getApiKeyForProvider("deepseek");
+    service = new DeepSeekFimClient(apiKey ? { apiKey } : {});
+  }
 
   ctx.ui.setEditorComponent((tui, theme, keybindings) =>
-    new InlineCompletionEditor(tui, theme, keybindings, ctx, service, { requireDeepSeekApiKey }),
+    new InlineCompletionEditor(tui, theme, keybindings, ctx, service),
   );
 }

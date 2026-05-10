@@ -141,29 +141,4 @@ test("injected prediction service can auto-request without DEEPSEEK_API_KEY", as
   }
 });
 
-test("too-short input does not notify about missing DEEPSEEK_API_KEY", () => {
-  const previousKey = process.env.DEEPSEEK_API_KEY;
-  delete process.env.DEEPSEEK_API_KEY;
 
-  try {
-    const notifications: string[] = [];
-    const editor = new InlineCompletionEditor(
-      createTui(),
-      createTheme(),
-      createKeybindings(),
-      createContext(notifications),
-      new FakePredictionService(),
-      { requireDeepSeekApiKey: true },
-    );
-
-    editor.setText("ab");
-
-    assert.deepEqual(notifications, []);
-  } finally {
-    if (previousKey === undefined) {
-      delete process.env.DEEPSEEK_API_KEY;
-    } else {
-      process.env.DEEPSEEK_API_KEY = previousKey;
-    }
-  }
-});

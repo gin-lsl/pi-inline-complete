@@ -1,4 +1,3 @@
-export const DEEPSEEK_API_KEY_ENV = "DEEPSEEK_API_KEY";
 export const DEEPSEEK_FIM_ENDPOINT = "https://api.deepseek.com/beta/completions";
 export const DEEPSEEK_MODEL = "deepseek-v4-flash";
 export const DEFAULT_DEBOUNCE_MS = 600;
