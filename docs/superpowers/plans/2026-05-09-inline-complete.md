@@ -1,49 +1,49 @@
-# Inline Completion Pi Package Implementation Plan
+# Pi 输入框 Inline Completion 实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **给 agentic workers：** 必须使用子技能：执行本计划时请使用 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans`。每个步骤都使用 checkbox（`- [ ]`）语法，便于逐项跟踪。
 
-**Goal:** Build a distributable pi package that adds DeepSeek-powered inline ghost-text predictions to pi's interactive input editor.
+**目标：** 构建一个可分发的 pi package，为 pi 的交互式输入框加入基于 DeepSeek 的 inline ghost-text 预测补全能力。
 
-**Architecture:** The package exposes one pi extension that installs a `CustomEditor` subclass on `session_start`. Pure helper modules handle cursor splitting, context construction, DeepSeek FIM calls, and ghost-text rendering; the editor module orchestrates debounce, request cancellation, stale result rejection, and `Tab` acceptance.
+**架构：** 这个 package 暴露一个 pi extension，在 `session_start` 时安装一个 `CustomEditor` 子类。纯 helper 模块负责光标拆分、上下文构造、DeepSeek FIM 调用和 ghost-text 渲染；editor 模块负责编排 debounce、请求取消、过期结果丢弃和 `Tab` 接受预测。
 
-**Tech Stack:** TypeScript source loaded by pi via jiti, pi extension API, `@mariozechner/pi-coding-agent`, `@mariozechner/pi-tui`, DeepSeek beta FIM completions API, Node built-in test runner through `tsx`.
-
----
-
-## Scope Check
-
-The approved spec covers one subsystem: an inline completion pi package. It does not require separate plans for independent subsystems.
-
-## File Structure
-
-- Create `package.json`: package metadata, pi manifest, peer dependencies, and dev scripts.
-- Create `tsconfig.json`: strict TypeScript config for source-loaded `.ts` imports.
-- Create `.gitignore`: ignores package install/build artifacts and environment files.
-- Create `extensions/inline-complete.ts`: pi extension entrypoint; registers editor installation on `session_start`.
-- Create `src/config.ts`: constants for DeepSeek endpoint, model, debounce, timeout, and token limits.
-- Create `src/types.ts`: small shared types for cursor snapshots and prediction services.
-- Create `src/text.ts`: pure helpers for cursor splitting, snapshot keys, input threshold checks, suffix deduplication, and response cleaning.
-- Create `src/context.ts`: pure helpers for extracting recent pi conversation text and building the FIM prompt.
-- Create `src/deepseek.ts`: DeepSeek FIM client with explicit auth/transient error classes.
-- Create `src/ghost-render.ts`: conservative renderer helper that inserts dim ghost text into pi editor render lines.
-- Create `src/inline-editor.ts`: `InlineCompletionEditor` and `installInlineCompletion()` orchestration.
-- Create `test/*.test.ts`: unit tests for pure helpers, DeepSeek client, ghost renderer, and editor `Tab` acceptance.
-- Create `README.md`: installation, environment variable, behavior, privacy, and verification docs.
+**技术栈：** TypeScript 源码由 pi 通过 jiti 加载，pi extension API，`@mariozechner/pi-coding-agent`，`@mariozechner/pi-tui`，DeepSeek beta FIM completions API，Node 内置 test runner，通过 `tsx` 运行测试。
 
 ---
 
-### Task 1: Scaffold package metadata and test harness
+## 范围检查
 
-**Files:**
-- Create: `package.json`
-- Create: `tsconfig.json`
-- Create: `.gitignore`
-- Create: `src/config.ts`
-- Create: `test/smoke.test.ts`
+已批准的 spec 只覆盖一个子系统：inline completion pi package。不需要拆成多个相互独立的实现计划。
 
-- [ ] **Step 1: Create package metadata**
+## 文件结构
 
-Create `package.json` with this content:
+- 创建 `package.json`：package 元数据、pi manifest、peer dependencies 和开发脚本。
+- 创建 `tsconfig.json`：用于直接加载 `.ts` 源码 import 的严格 TypeScript 配置。
+- 创建 `.gitignore`：忽略 package 安装/构建产物和环境文件。
+- 创建 `extensions/inline-complete.ts`：pi extension 入口；在 `session_start` 时注册 editor 安装逻辑。
+- 创建 `src/config.ts`：DeepSeek endpoint、模型、debounce、timeout、token 限制等常量。
+- 创建 `src/types.ts`：光标快照和预测服务的小型共享类型。
+- 创建 `src/text.ts`：光标拆分、snapshot key、输入阈值判断、suffix 去重、响应清洗等纯 helper。
+- 创建 `src/context.ts`：从最近 pi 对话中提取文本并构造 FIM prompt 的纯 helper。
+- 创建 `src/deepseek.ts`：DeepSeek FIM client，包含明确的鉴权错误和瞬时错误类型。
+- 创建 `src/ghost-render.ts`：保守的渲染 helper，把 dim ghost text 插入 pi editor 渲染行。
+- 创建 `src/inline-editor.ts`：`InlineCompletionEditor` 和 `installInlineCompletion()` 编排逻辑。
+- 创建 `test/*.test.ts`：纯 helper、DeepSeek client、ghost renderer、editor `Tab` 接受行为的单元测试。
+- 创建 `README.md`：安装、环境变量、行为说明、隐私边界和验证说明。
+
+---
+
+### 任务 1：搭建 package 元数据和测试框架
+
+**文件：**
+- 创建：`package.json`
+- 创建：`tsconfig.json`
+- 创建：`.gitignore`
+- 创建：`src/config.ts`
+- 创建：`test/smoke.test.ts`
+
+- [ ] **步骤 1：创建 package 元数据**
+
+创建 `package.json`，内容如下：
 
 ```json
 {
@@ -76,9 +76,9 @@ Create `package.json` with this content:
 }
 ```
 
-- [ ] **Step 2: Create TypeScript configuration**
+- [ ] **步骤 2：创建 TypeScript 配置**
 
-Create `tsconfig.json` with this content:
+创建 `tsconfig.json`，内容如下：
 
 ```json
 {
@@ -99,9 +99,9 @@ Create `tsconfig.json` with this content:
 }
 ```
 
-- [ ] **Step 3: Create ignore rules**
+- [ ] **步骤 3：创建忽略规则**
 
-Create `.gitignore` with this content:
+创建 `.gitignore`，内容如下：
 
 ```gitignore
 node_modules/
@@ -113,9 +113,9 @@ dist/
 coverage/
 ```
 
-- [ ] **Step 4: Create runtime constants**
+- [ ] **步骤 4：创建运行时常量**
 
-Create `src/config.ts` with this content:
+创建 `src/config.ts`，内容如下：
 
 ```typescript
 export const DEEPSEEK_API_KEY_ENV = "DEEPSEEK_API_KEY";
@@ -131,9 +131,9 @@ export const DEFAULT_RECENT_CONTEXT_MESSAGES = 8;
 export const DEFAULT_MAX_COMPLETION_CHARS = 600;
 ```
 
-- [ ] **Step 5: Create smoke test**
+- [ ] **步骤 5：创建 smoke test**
 
-Create `test/smoke.test.ts` with this content:
+创建 `test/smoke.test.ts`，内容如下：
 
 ```typescript
 import assert from "node:assert/strict";
@@ -146,49 +146,49 @@ test("test harness loads TypeScript modules", () => {
 });
 ```
 
-- [ ] **Step 6: Install dev dependencies**
+- [ ] **步骤 6：安装开发依赖**
 
-Run:
+运行：
 
 ```bash
 npm install
 ```
 
-Expected: command exits with code 0 and creates `node_modules/`. If `package-lock.json` is created, leave it untracked because `.gitignore` excludes it for this source package.
+预期：命令以 code 0 退出并创建 `node_modules/`。如果生成了 `package-lock.json`，保持不跟踪，因为 `.gitignore` 会排除它。
 
-- [ ] **Step 7: Run smoke verification**
+- [ ] **步骤 7：运行 smoke 验证**
 
-Run:
+运行：
 
 ```bash
 npm run check
 ```
 
-Expected: `tsc --noEmit` exits 0 and the smoke test passes.
+预期：`tsc --noEmit` 退出码为 0，smoke test 通过。
 
-- [ ] **Step 8: Commit scaffold**
+- [ ] **步骤 8：提交 scaffold**
 
-Run:
+运行：
 
 ```bash
 git add package.json tsconfig.json .gitignore src/config.ts test/smoke.test.ts
 git commit -m "chore: scaffold inline completion package"
 ```
 
-Expected: commit succeeds.
+预期：提交成功。
 
 ---
 
-### Task 2: Implement cursor and completion text helpers with TDD
+### 任务 2：用 TDD 实现光标和补全文本 helper
 
-**Files:**
-- Create: `src/types.ts`
-- Create: `src/text.ts`
-- Create: `test/text.test.ts`
+**文件：**
+- 创建：`src/types.ts`
+- 创建：`src/text.ts`
+- 创建：`test/text.test.ts`
 
-- [ ] **Step 1: Write failing text helper tests**
+- [ ] **步骤 1：编写失败的文本 helper 测试**
 
-Create `test/text.test.ts` with this content:
+创建 `test/text.test.ts`，内容如下：
 
 ```typescript
 import assert from "node:assert/strict";
@@ -252,19 +252,19 @@ test("cleanCompletion applies suffix overlap removal", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **步骤 2：运行测试，确认失败**
 
-Run:
+运行：
 
 ```bash
 npm test -- test/text.test.ts
 ```
 
-Expected: FAIL because `src/text.ts` and `src/types.ts` do not exist.
+预期：失败，因为 `src/text.ts` 和 `src/types.ts` 尚不存在。
 
-- [ ] **Step 3: Create shared types**
+- [ ] **步骤 3：创建共享类型**
 
-Create `src/types.ts` with this content:
+创建 `src/types.ts`，内容如下：
 
 ```typescript
 export interface CursorPosition {
@@ -291,9 +291,9 @@ export interface PredictionService {
 }
 ```
 
-- [ ] **Step 4: Implement text helpers**
+- [ ] **步骤 4：实现文本 helper**
 
-Create `src/text.ts` with this content:
+创建 `src/text.ts`，内容如下：
 
 ```typescript
 import { DEFAULT_MAX_COMPLETION_CHARS } from "./config.ts";
@@ -373,48 +373,48 @@ export function cleanCompletion(
 }
 ```
 
-- [ ] **Step 5: Run text helper tests**
+- [ ] **步骤 5：运行文本 helper 测试**
 
-Run:
+运行：
 
 ```bash
 npm test -- test/text.test.ts
 ```
 
-Expected: PASS for all tests in `test/text.test.ts`.
+预期：`test/text.test.ts` 中所有测试通过。
 
-- [ ] **Step 6: Run full check**
+- [ ] **步骤 6：运行完整检查**
 
-Run:
+运行：
 
 ```bash
 npm run check
 ```
 
-Expected: typecheck and all tests pass.
+预期：typecheck 和所有测试通过。
 
-- [ ] **Step 7: Commit text helpers**
+- [ ] **步骤 7：提交文本 helper**
 
-Run:
+运行：
 
 ```bash
 git add src/types.ts src/text.ts test/text.test.ts
 git commit -m "feat: add completion text helpers"
 ```
 
-Expected: commit succeeds.
+预期：提交成功。
 
 ---
 
-### Task 3: Implement recent conversation context helpers with TDD
+### 任务 3：用 TDD 实现最近对话上下文 helper
 
-**Files:**
-- Create: `src/context.ts`
-- Create: `test/context.test.ts`
+**文件：**
+- 创建：`src/context.ts`
+- 创建：`test/context.test.ts`
 
-- [ ] **Step 1: Write failing context tests**
+- [ ] **步骤 1：编写失败的上下文测试**
 
-Create `test/context.test.ts` with this content:
+创建 `test/context.test.ts`，内容如下：
 
 ```typescript
 import assert from "node:assert/strict";
@@ -487,19 +487,19 @@ test("buildFimPrompt combines instruction, context, and current draft", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **步骤 2：运行测试，确认失败**
 
-Run:
+运行：
 
 ```bash
 npm test -- test/context.test.ts
 ```
 
-Expected: FAIL because `src/context.ts` does not exist.
+预期：失败，因为 `src/context.ts` 尚不存在。
 
-- [ ] **Step 3: Implement context helpers**
+- [ ] **步骤 3：实现上下文 helper**
 
-Create `src/context.ts` with this content:
+创建 `src/context.ts`，内容如下：
 
 ```typescript
 import { DEFAULT_RECENT_CONTEXT_CHARS, DEFAULT_RECENT_CONTEXT_MESSAGES } from "./config.ts";
@@ -576,48 +576,48 @@ export function buildFimPrompt(recentContext: string, beforeCursor: string): str
 }
 ```
 
-- [ ] **Step 4: Run context tests**
+- [ ] **步骤 4：运行上下文测试**
 
-Run:
+运行：
 
 ```bash
 npm test -- test/context.test.ts
 ```
 
-Expected: PASS for all tests in `test/context.test.ts`.
+预期：`test/context.test.ts` 中所有测试通过。
 
-- [ ] **Step 5: Run full check**
+- [ ] **步骤 5：运行完整检查**
 
-Run:
+运行：
 
 ```bash
 npm run check
 ```
 
-Expected: typecheck and all tests pass.
+预期：typecheck 和所有测试通过。
 
-- [ ] **Step 6: Commit context helpers**
+- [ ] **步骤 6：提交上下文 helper**
 
-Run:
+运行：
 
 ```bash
 git add src/context.ts test/context.test.ts
 git commit -m "feat: build inline completion context"
 ```
 
-Expected: commit succeeds.
+预期：提交成功。
 
 ---
 
-### Task 4: Implement DeepSeek FIM client with TDD
+### 任务 4：用 TDD 实现 DeepSeek FIM client
 
-**Files:**
-- Create: `src/deepseek.ts`
-- Create: `test/deepseek.test.ts`
+**文件：**
+- 创建：`src/deepseek.ts`
+- 创建：`test/deepseek.test.ts`
 
-- [ ] **Step 1: Write failing DeepSeek client tests**
+- [ ] **步骤 1：编写失败的 DeepSeek client 测试**
 
-Create `test/deepseek.test.ts` with this content:
+创建 `test/deepseek.test.ts`，内容如下：
 
 ```typescript
 import assert from "node:assert/strict";
@@ -699,19 +699,19 @@ test("DeepSeekFimClient cleans suffix duplication from returned text", async () 
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **步骤 2：运行测试，确认失败**
 
-Run:
+运行：
 
 ```bash
 npm test -- test/deepseek.test.ts
 ```
 
-Expected: FAIL because `src/deepseek.ts` does not exist.
+预期：失败，因为 `src/deepseek.ts` 尚不存在。
 
-- [ ] **Step 3: Implement DeepSeek client**
+- [ ] **步骤 3：实现 DeepSeek client**
 
-Create `src/deepseek.ts` with this content:
+创建 `src/deepseek.ts`，内容如下：
 
 ```typescript
 import { DEFAULT_MAX_TOKENS, DEEPSEEK_FIM_ENDPOINT, DEEPSEEK_MODEL } from "./config.ts";
@@ -800,48 +800,48 @@ export class DeepSeekFimClient implements PredictionService {
 }
 ```
 
-- [ ] **Step 4: Run DeepSeek tests**
+- [ ] **步骤 4：运行 DeepSeek 测试**
 
-Run:
+运行：
 
 ```bash
 npm test -- test/deepseek.test.ts
 ```
 
-Expected: PASS for all tests in `test/deepseek.test.ts`.
+预期：`test/deepseek.test.ts` 中所有测试通过。
 
-- [ ] **Step 5: Run full check**
+- [ ] **步骤 5：运行完整检查**
 
-Run:
+运行：
 
 ```bash
 npm run check
 ```
 
-Expected: typecheck and all tests pass.
+预期：typecheck 和所有测试通过。
 
-- [ ] **Step 6: Commit DeepSeek client**
+- [ ] **步骤 6：提交 DeepSeek client**
 
-Run:
+运行：
 
 ```bash
 git add src/deepseek.ts test/deepseek.test.ts
 git commit -m "feat: add DeepSeek FIM client"
 ```
 
-Expected: commit succeeds.
+预期：提交成功。
 
 ---
 
-### Task 5: Implement ghost-text render helper with TDD
+### 任务 5：用 TDD 实现 ghost-text 渲染 helper
 
-**Files:**
-- Create: `src/ghost-render.ts`
-- Create: `test/ghost-render.test.ts`
+**文件：**
+- 创建：`src/ghost-render.ts`
+- 创建：`test/ghost-render.test.ts`
 
-- [ ] **Step 1: Write failing ghost-render tests**
+- [ ] **步骤 1：编写失败的 ghost-render 测试**
 
-Create `test/ghost-render.test.ts` with this content:
+创建 `test/ghost-render.test.ts`，内容如下：
 
 ```typescript
 import assert from "node:assert/strict";
@@ -884,19 +884,19 @@ test("insertGhostText truncates long ghost text to the available width", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **步骤 2：运行测试，确认失败**
 
-Run:
+运行：
 
 ```bash
 npm test -- test/ghost-render.test.ts
 ```
 
-Expected: FAIL because `src/ghost-render.ts` does not exist.
+预期：失败，因为 `src/ghost-render.ts` 尚不存在。
 
-- [ ] **Step 3: Implement ghost render helper**
+- [ ] **步骤 3：实现 ghost render helper**
 
-Create `src/ghost-render.ts` with this content:
+创建 `src/ghost-render.ts`，内容如下：
 
 ```typescript
 import { truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
@@ -942,49 +942,49 @@ export function insertGhostText(
 }
 ```
 
-- [ ] **Step 4: Run ghost-render tests**
+- [ ] **步骤 4：运行 ghost-render 测试**
 
-Run:
+运行：
 
 ```bash
 npm test -- test/ghost-render.test.ts
 ```
 
-Expected: PASS for all tests in `test/ghost-render.test.ts`.
+预期：`test/ghost-render.test.ts` 中所有测试通过。
 
-- [ ] **Step 5: Run full check**
+- [ ] **步骤 5：运行完整检查**
 
-Run:
+运行：
 
 ```bash
 npm run check
 ```
 
-Expected: typecheck and all tests pass.
+预期：typecheck 和所有测试通过。
 
-- [ ] **Step 6: Commit ghost renderer**
+- [ ] **步骤 6：提交 ghost renderer**
 
-Run:
+运行：
 
 ```bash
 git add src/ghost-render.ts test/ghost-render.test.ts
 git commit -m "feat: render inline ghost text"
 ```
 
-Expected: commit succeeds.
+预期：提交成功。
 
 ---
 
-### Task 6: Implement pi editor integration and extension entrypoint
+### 任务 6：实现 pi editor 集成和 extension 入口
 
-**Files:**
-- Create: `src/inline-editor.ts`
-- Create: `extensions/inline-complete.ts`
-- Create: `test/inline-editor.test.ts`
+**文件：**
+- 创建：`src/inline-editor.ts`
+- 创建：`extensions/inline-complete.ts`
+- 创建：`test/inline-editor.test.ts`
 
-- [ ] **Step 1: Write failing editor integration tests**
+- [ ] **步骤 1：编写失败的 editor 集成测试**
 
-Create `test/inline-editor.test.ts` with this content:
+创建 `test/inline-editor.test.ts`，内容如下：
 
 ```typescript
 import assert from "node:assert/strict";
@@ -1078,19 +1078,19 @@ test("render includes dim ghost text for a valid prediction", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **步骤 2：运行测试，确认失败**
 
-Run:
+运行：
 
 ```bash
 npm test -- test/inline-editor.test.ts
 ```
 
-Expected: FAIL because `src/inline-editor.ts` does not exist.
+预期：失败，因为 `src/inline-editor.ts` 尚不存在。
 
-- [ ] **Step 3: Implement editor integration**
+- [ ] **步骤 3：实现 editor 集成**
 
-Create `src/inline-editor.ts` with this content:
+创建 `src/inline-editor.ts`，内容如下：
 
 ```typescript
 import {
@@ -1314,9 +1314,9 @@ export function installInlineCompletion(ctx: ExtensionContext, predictionService
 }
 ```
 
-- [ ] **Step 4: Create extension entrypoint**
+- [ ] **步骤 4：创建 extension 入口**
 
-Create `extensions/inline-complete.ts` with this content:
+创建 `extensions/inline-complete.ts`，内容如下：
 
 ```typescript
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
@@ -1330,48 +1330,48 @@ export default function inlineCompleteExtension(pi: ExtensionAPI): void {
 }
 ```
 
-- [ ] **Step 5: Run editor integration tests**
+- [ ] **步骤 5：运行 editor 集成测试**
 
-Run:
+运行：
 
 ```bash
 npm test -- test/inline-editor.test.ts
 ```
 
-Expected: PASS for all tests in `test/inline-editor.test.ts`.
+预期：`test/inline-editor.test.ts` 中所有测试通过。
 
-- [ ] **Step 6: Run full check**
+- [ ] **步骤 6：运行完整检查**
 
-Run:
+运行：
 
 ```bash
 npm run check
 ```
 
-Expected: typecheck and all tests pass.
+预期：typecheck 和所有测试通过。
 
-- [ ] **Step 7: Commit editor integration**
+- [ ] **步骤 7：提交 editor 集成**
 
-Run:
+运行：
 
 ```bash
 git add src/inline-editor.ts extensions/inline-complete.ts test/inline-editor.test.ts
 git commit -m "feat: install inline completion editor"
 ```
 
-Expected: commit succeeds.
+预期：提交成功。
 
 ---
 
-### Task 7: Add README and perform package verification
+### 任务 7：补充 README 并执行 package 验证
 
-**Files:**
-- Create: `README.md`
-- Modify: `package.json`
+**文件：**
+- 创建：`README.md`
+- 修改：`package.json`
 
-- [ ] **Step 1: Write README**
+- [ ] **步骤 1：编写 README**
 
-Create `README.md` with this content:
+创建 `README.md`，内容如下：
 
 ```markdown
 # pi-inline-complete
@@ -1454,9 +1454,9 @@ pi -e "$(pwd)"
 Then type a prompt, pause for about 600 ms, confirm dim text appears after the cursor, and press `Tab` to accept it.
 ```
 
-- [ ] **Step 2: Add Node engine metadata**
+- [ ] **步骤 2：添加 Node engine 元数据**
 
-Modify `package.json` to add a stable `engines` field after `license`, preserving all existing fields from Task 1:
+修改 `package.json`，在 `license` 后添加稳定的 `engines` 字段，并保留任务 1 中已有的所有字段：
 
 ```json
 "engines": {
@@ -1464,109 +1464,109 @@ Modify `package.json` to add a stable `engines` field after `license`, preservin
 },
 ```
 
-The committed `package.json` must be valid JSON.
+提交前必须确保 `package.json` 是合法 JSON。
 
-- [ ] **Step 3: Run full automated verification**
+- [ ] **步骤 3：运行完整自动验证**
 
-Run:
+运行：
 
 ```bash
 npm run check
 ```
 
-Expected: typecheck and all tests pass.
+预期：typecheck 和所有测试通过。
 
-- [ ] **Step 4: Verify pi can discover the package manifest**
+- [ ] **步骤 4：验证 pi 可以发现 package manifest**
 
-Run:
+运行：
 
 ```bash
 node -e "const pkg=require('./package.json'); if (!pkg.pi?.extensions?.includes('./extensions/inline-complete.ts')) process.exit(1); console.log('pi manifest ok')"
 ```
 
-Expected output:
+预期输出：
 
 ```text
 pi manifest ok
 ```
 
-- [ ] **Step 5: Manual interactive verification with missing API key**
+- [ ] **步骤 5：手动验证缺少 API key 时的行为**
 
-Run:
+运行：
 
 ```bash
 unset DEEPSEEK_API_KEY
 pi -e .
 ```
 
-Expected: pi starts successfully. Type at least three non-whitespace characters and pause. The editor remains usable, and the extension shows at most one warning that `DEEPSEEK_API_KEY` is required. Exit pi after this check.
+预期：pi 成功启动。输入至少 3 个非空白字符并暂停。输入框保持可用，extension 最多只提示一次需要 `DEEPSEEK_API_KEY`。完成后退出 pi。
 
-- [ ] **Step 6: Manual interactive verification with DeepSeek API key**
+- [ ] **步骤 6：使用 DeepSeek API key 手动验证**
 
-Run:
+运行：
 
 ```bash
 test -n "$DEEPSEEK_API_KEY"
 pi -e .
 ```
 
-Expected: the `test -n` command succeeds, then pi starts successfully. Type a prompt, pause for about 600 ms, see dim prediction text, press `Tab`, and confirm the prediction is inserted at the cursor. Move the cursor into the middle of the draft, pause again, and confirm `Tab` inserts the returned text at the current cursor position. Exit pi after this check.
+预期：`test -n` 命令成功，然后 pi 成功启动。输入一段 prompt，暂停约 600 ms，看到 dim 预测文本，按 `Tab`，确认预测内容插入到光标位置。把光标移动到 draft 中间，再暂停并确认 `Tab` 会把返回文本插入当前光标位置。完成后退出 pi。
 
-- [ ] **Step 7: Commit README and verification metadata**
+- [ ] **步骤 7：提交 README 和验证元数据**
 
-Run:
+运行：
 
 ```bash
 git add README.md package.json
 git commit -m "docs: document inline completion package"
 ```
 
-Expected: commit succeeds.
+预期：提交成功。
 
 ---
 
-## Final Verification Before Completion
+## 完成前最终验证
 
-- [ ] Run automated checks:
+- [ ] 运行自动检查：
 
 ```bash
 npm run check
 ```
 
-Expected: typecheck and all tests pass.
+预期：typecheck 和所有测试通过。
 
-- [ ] Inspect git history:
+- [ ] 检查 git 历史：
 
 ```bash
 git log --oneline --decorate -8
 ```
 
-Expected: includes commits for scaffold, text helpers, context helpers, DeepSeek client, ghost renderer, editor integration, and README.
+预期：包含 scaffold、text helpers、context helpers、DeepSeek client、ghost renderer、editor integration、README 的提交。
 
-- [ ] Inspect working tree:
+- [ ] 检查工作区：
 
 ```bash
 git status --short
 ```
 
-Expected: no unexpected changes. A local `package-lock.json` may exist and remain ignored.
+预期：没有非预期改动。可能存在本地 `package-lock.json`，它应保持被忽略。
 
-- [ ] Record manual verification results in the final response, including whether `DEEPSEEK_API_KEY` verification was run.
+- [ ] 在最终回复中记录手动验证结果，包括是否运行了带 `DEEPSEEK_API_KEY` 的验证。
 
-## Plan Self-Review
+## Plan 自检
 
-Spec coverage:
+Spec 覆盖情况：
 
-- Distributable pi package: Tasks 1 and 7.
-- `DEEPSEEK_API_KEY` and `deepseek-v4-flash`: Tasks 1 and 4.
-- FIM prompt/suffix flow: Tasks 3 and 4.
-- Current editor text plus recent conversation context: Tasks 2, 3, and 6.
-- Debounced prediction, stale result rejection, aborts, backoff, and auth handling: Task 6.
-- Ghost rendering after cursor: Task 5 and Task 6.
-- `Tab` priority over autocomplete only when prediction exists: Task 6.
-- README privacy boundary and limitations: Task 7.
-- Automated and manual verification: Tasks 2-7 plus Final Verification.
+- 可分发 pi package：任务 1 和任务 7。
+- `DEEPSEEK_API_KEY` 和 `deepseek-v4-flash`：任务 1 和任务 4。
+- FIM prompt/suffix 流程：任务 3 和任务 4。
+- 当前输入框文本 + 最近对话上下文：任务 2、任务 3 和任务 6。
+- Debounced prediction、过期结果丢弃、abort、backoff 和鉴权处理：任务 6。
+- 光标后的 ghost rendering：任务 5 和任务 6。
+- 仅当存在预测时 `Tab` 优先于 autocomplete：任务 6。
+- README 隐私边界和限制：任务 7。
+- 自动和手动验证：任务 2-7，加上最终验证。
 
-Placeholder scan: The plan contains concrete file paths, commands, expected results, and code blocks. It does not require undefined functions or deferred implementation details.
+占位符扫描：本计划包含明确的文件路径、命令、预期结果和代码块。没有依赖未定义函数，也没有延后实现细节。
 
-Type consistency: `PredictionService`, `PredictionRequest`, `EditorSnapshot`, `InlineCompletionEditor`, `DeepSeekFimClient`, and helper function names are introduced before they are used by later tasks.
+类型一致性：`PredictionService`、`PredictionRequest`、`EditorSnapshot`、`InlineCompletionEditor`、`DeepSeekFimClient` 和 helper 函数名都在后续任务使用之前已经定义。
