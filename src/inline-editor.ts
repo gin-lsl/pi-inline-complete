@@ -13,7 +13,7 @@ import {
 } from "./config.ts";
 import { buildRecentConversationContext } from "./context.ts";
 import { DeepSeekAuthError, DeepSeekFimClient } from "./deepseek.ts";
-import { insertGhostText } from "./ghost-render.ts";
+import { renderGhostText } from "./ghost-render.ts";
 import { hasEnoughInput, splitAtCursor } from "./text.ts";
 import type { EditorSnapshot, PredictionService } from "./types.ts";
 
@@ -28,6 +28,7 @@ export interface InlineCompletionEditorOptions {
   minNonWhitespace?: number;
   backoffMs?: number;
   autoRequest?: boolean;
+  requireDeepSeekApiKey?: boolean;
 }
 
 function isAbortError(error: unknown): boolean {
@@ -43,10 +44,12 @@ export class InlineCompletionEditor extends CustomEditor {
   private readonly minNonWhitespace: number;
   private readonly backoffMs: number;
   private readonly autoRequest: boolean;
+  private readonly requireDeepSeekApiKey: boolean;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private abortController: AbortController | undefined;
   private requestId = 0;
   private prediction: ActivePrediction | undefined;
+  private renderedPredictionKey: string | undefined;
   private backoffUntil = 0;
   private authDisabled = false;
   private readonly notified = new Set<string>();
@@ -68,10 +71,12 @@ export class InlineCompletionEditor extends CustomEditor {
     this.minNonWhitespace = options.minNonWhitespace ?? DEFAULT_MIN_NON_WHITESPACE;
     this.backoffMs = options.backoffMs ?? DEFAULT_BACKOFF_MS;
     this.autoRequest = options.autoRequest ?? true;
+    this.requireDeepSeekApiKey = options.requireDeepSeekApiKey ?? false;
   }
 
   setPredictionForTest(text: string): void {
     this.prediction = { text, snapshotKey: this.currentSnapshot().key };
+    this.renderedPredictionKey = undefined;
   }
 
   override setText(text: string): void {
@@ -85,7 +90,7 @@ export class InlineCompletionEditor extends CustomEditor {
   }
 
   override handleInput(data: string): void {
-    if (this.hasValidPrediction() && this.appKeybindings.matches(data, "tui.input.tab")) {
+    if (this.hasVisiblePrediction() && this.appKeybindings.matches(data, "tui.input.tab")) {
       const accepted = this.prediction?.text ?? "";
       this.clearPrediction();
       this.abortPendingRequest();
@@ -104,21 +109,35 @@ export class InlineCompletionEditor extends CustomEditor {
 
   override render(width: number): string[] {
     const lines = super.render(width);
-    if (!this.hasValidPrediction()) return lines;
+    const snapshot = this.currentSnapshot();
+    if (!this.hasValidPrediction(snapshot)) {
+      this.renderedPredictionKey = undefined;
+      return lines;
+    }
 
-    return insertGhostText(lines, this.prediction?.text ?? "", width, (text) => this.ctx.ui.theme.fg("dim", text));
+    const result = renderGhostText(lines, this.prediction?.text ?? "", width, (text) => this.ctx.ui.theme.fg("dim", text), {
+      cursorAtEnd: snapshot.afterCursor.length === 0,
+    });
+    this.renderedPredictionKey = result.inserted ? snapshot.key : undefined;
+    return result.lines;
   }
 
   private currentSnapshot(): EditorSnapshot {
     return splitAtCursor(this.getLines(), this.getCursor());
   }
 
-  private hasValidPrediction(): boolean {
-    return this.prediction !== undefined && this.prediction.snapshotKey === this.currentSnapshot().key;
+  private hasValidPrediction(snapshot = this.currentSnapshot()): boolean {
+    return this.prediction !== undefined && this.prediction.snapshotKey === snapshot.key;
+  }
+
+  private hasVisiblePrediction(): boolean {
+    const snapshot = this.currentSnapshot();
+    return this.hasValidPrediction(snapshot) && this.renderedPredictionKey === snapshot.key;
   }
 
   private clearPrediction(): void {
     this.prediction = undefined;
+    this.renderedPredictionKey = undefined;
   }
 
   private handleSnapshotChange(): void {
@@ -145,11 +164,12 @@ export class InlineCompletionEditor extends CustomEditor {
     if (this.authDisabled) return false;
     if (Date.now() < this.backoffUntil) return false;
     if (!this.ctx.isIdle()) return false;
-    if (!process.env.DEEPSEEK_API_KEY) {
+    if (!hasEnoughInput(snapshot.text, this.minNonWhitespace)) return false;
+    if (this.requireDeepSeekApiKey && !process.env.DEEPSEEK_API_KEY) {
       this.notifyOnce("missing-key", "inline-complete: set DEEPSEEK_API_KEY to enable predictions.", "warning");
       return false;
     }
-    return hasEnoughInput(snapshot.text, this.minNonWhitespace);
+    return true;
   }
 
   private async requestPrediction(snapshot: EditorSnapshot): Promise<void> {
@@ -210,10 +230,13 @@ export class InlineCompletionEditor extends CustomEditor {
   }
 }
 
-export function installInlineCompletion(ctx: ExtensionContext, predictionService: PredictionService = new DeepSeekFimClient()): void {
+export function installInlineCompletion(ctx: ExtensionContext, predictionService?: PredictionService): void {
   if (!ctx.hasUI) return;
 
+  const service = predictionService ?? new DeepSeekFimClient();
+  const requireDeepSeekApiKey = predictionService === undefined;
+
   ctx.ui.setEditorComponent((tui, theme, keybindings) =>
-    new InlineCompletionEditor(tui, theme, keybindings, ctx, predictionService),
+    new InlineCompletionEditor(tui, theme, keybindings, ctx, service, { requireDeepSeekApiKey }),
   );
 }

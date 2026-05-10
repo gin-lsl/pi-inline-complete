@@ -84,6 +84,27 @@ test("insertGhostText inserts ghost text before a highlighted suffix character",
   assert.ok(visibleWidth(rendered) <= visibleWidth(lines[0] ?? ""));
 });
 
+test("insertGhostText inserts ghost text before a highlighted whitespace suffix when cursor is not at end", () => {
+  const lines = [`hello${cursor}tail       `];
+  const result = insertGhostText(lines, " ghost", visibleWidth(lines[0] ?? ""), dim, { cursorAtEnd: false });
+  const rendered = result[0] ?? "";
+
+  assert.notStrictEqual(result, lines);
+  assert.match(rendered, /hello\x1b\[2m ghost\x1b\[22m\x1b\[7m \x1b\[0mtail/);
+  assert.ok(rendered.indexOf(dim(" ghost")) < rendered.indexOf(cursor));
+  assert.ok(visibleWidth(rendered) <= visibleWidth(lines[0] ?? ""));
+});
+
+test("insertGhostText keeps true end-cursor ghost text after highlighted fake space", () => {
+  const lines = [`hello${cursor}       `];
+  const result = insertGhostText(lines, " ghost", visibleWidth(lines[0] ?? ""), dim, { cursorAtEnd: true });
+  const rendered = result[0] ?? "";
+
+  assert.notStrictEqual(result, lines);
+  assert.match(rendered, /hello\x1b\[7m \x1b\[0m\x1b\[2m ghost\x1b\[22m/);
+  assert.ok(rendered.indexOf(dim(" ghost")) > rendered.indexOf(cursor));
+});
+
 test("insertGhostText returns original lines when highlighted suffix character has no trailing padding", () => {
   const lines = [`hello${cursorOverT}ail`];
   const result = insertGhostText(lines, " ghost", visibleWidth(lines[0] ?? "") + 10, dim);
