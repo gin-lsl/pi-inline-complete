@@ -101,9 +101,10 @@
 
 - [ ] **步骤 3：创建忽略规则**
 
-创建 `.gitignore`，内容如下：
+创建 `.gitignore`，内容如下。如果 worktree 设置已经创建了包含 `.worktrees/` 的 `.gitignore`，保留该行，并把下面其余行各添加一次：
 
 ```gitignore
+.worktrees/
 node_modules/
 package-lock.json
 .DS_Store
