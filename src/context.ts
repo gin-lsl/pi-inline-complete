@@ -1,8 +1,7 @@
 import { DEFAULT_RECENT_CONTEXT_CHARS, DEFAULT_RECENT_CONTEXT_MESSAGES } from "./config.ts";
 
 type TextBlock = { type?: unknown; text?: unknown };
-type MessageLike = { role?: unknown; content?: unknown };
-type BranchEntryLike = { type?: unknown; message?: MessageLike };
+type UnknownRecord = Record<string, unknown>;
 
 export interface RecentContextOptions {
   maxChars?: number;
@@ -19,6 +18,16 @@ export function contentToText(content: unknown): string {
     .join("\n");
 }
 
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizeLimit(value: unknown, fallback: number): number {
+  const limit = value === undefined ? fallback : value;
+  if (typeof limit !== "number" || !Number.isFinite(limit)) return 0;
+  return Math.max(0, Math.floor(limit));
+}
+
 function labelForRole(role: string): string {
   return role === "assistant" ? "Assistant" : "User";
 }
@@ -27,18 +36,22 @@ export function buildRecentConversationContext(
   branchEntries: readonly unknown[],
   options: RecentContextOptions = {},
 ): string {
-  const maxChars = options.maxChars ?? DEFAULT_RECENT_CONTEXT_CHARS;
-  const maxMessages = options.maxMessages ?? DEFAULT_RECENT_CONTEXT_MESSAGES;
+  const maxChars = normalizeLimit(options.maxChars, DEFAULT_RECENT_CONTEXT_CHARS);
+  const maxMessages = normalizeLimit(options.maxMessages, DEFAULT_RECENT_CONTEXT_MESSAGES);
+  if (maxMessages === 0 || maxChars === 0) return "";
+
   const messages: Array<{ role: string; text: string }> = [];
 
   for (const rawEntry of branchEntries) {
-    const entry = rawEntry as BranchEntryLike;
-    if (entry.type !== "message") continue;
+    if (!isRecord(rawEntry) || rawEntry.type !== "message") continue;
 
-    const role = typeof entry.message?.role === "string" ? entry.message.role : "";
+    const message = rawEntry.message;
+    if (!isRecord(message)) continue;
+
+    const role = typeof message.role === "string" ? message.role : "";
     if (role !== "user" && role !== "assistant") continue;
 
-    const text = contentToText(entry.message?.content).trim();
+    const text = contentToText(message.content).trim();
     if (!text) continue;
 
     messages.push({ role, text });

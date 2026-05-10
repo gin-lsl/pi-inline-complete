@@ -43,6 +43,38 @@ test("buildRecentConversationContext includes recent user and assistant text", (
   assert.doesNotMatch(context, /ignored/);
 });
 
+test("buildRecentConversationContext ignores malformed branch entries", () => {
+  const entries = [
+    null,
+    undefined,
+    42,
+    "not an entry",
+    { type: "message" },
+    { type: "message", message: null },
+    { type: "message", message: { role: "user" } },
+    { type: "message", message: { role: "assistant", content: [{ type: "text" }] } },
+    { type: "message", message: { role: "user", content: "valid request" } },
+  ];
+  let context = "";
+
+  assert.doesNotThrow(() => {
+    context = buildRecentConversationContext(entries);
+  });
+  assert.match(context, /User: valid request/);
+});
+
+test("buildRecentConversationContext returns empty context for zero limits", () => {
+  assert.equal(buildRecentConversationContext(branch, { maxMessages: 0 }), "");
+  assert.equal(buildRecentConversationContext(branch, { maxChars: 0 }), "");
+});
+
+test("buildRecentConversationContext returns empty context for invalid limits", () => {
+  assert.equal(buildRecentConversationContext(branch, { maxMessages: -1 }), "");
+  assert.equal(buildRecentConversationContext(branch, { maxChars: -1 }), "");
+  assert.equal(buildRecentConversationContext(branch, { maxMessages: Number.NaN }), "");
+  assert.equal(buildRecentConversationContext(branch, { maxChars: Number.NaN }), "");
+});
+
 test("buildRecentConversationContext respects message and character limits", () => {
   const entries = Array.from({ length: 12 }, (_, index) => ({
     type: "message",
