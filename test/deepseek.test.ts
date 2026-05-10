@@ -7,11 +7,13 @@ import { DeepSeekAuthError, DeepSeekFimClient, DeepSeekTransientError, type Fetc
 test("DeepSeekFimClient sends an OpenAI-compatible FIM completion request", async () => {
   let capturedUrl = "";
   let capturedHeaders: Headers | undefined;
+  let capturedMethod: string | undefined;
   let capturedBody: Record<string, unknown> | undefined;
 
   const fetchImpl: FetchLike = async (url, init) => {
     capturedUrl = String(url);
     capturedHeaders = new Headers(init.headers);
+    capturedMethod = init.method;
     capturedBody = JSON.parse(String(init.body)) as Record<string, unknown>;
     return new Response(JSON.stringify({ choices: [{ text: " world" }] }), { status: 200 });
   };
@@ -23,6 +25,7 @@ test("DeepSeekFimClient sends an OpenAI-compatible FIM completion request", asyn
   );
 
   assert.equal(capturedUrl, DEEPSEEK_FIM_ENDPOINT);
+  assert.equal(capturedMethod, "POST");
   assert.equal(capturedHeaders?.get("authorization"), "Bearer sk-test");
   assert.equal(capturedHeaders?.get("content-type"), "application/json");
   assert.equal(capturedBody?.model, DEEPSEEK_MODEL);
@@ -45,13 +48,15 @@ test("DeepSeekFimClient returns undefined without an API key", async () => {
 });
 
 test("DeepSeekFimClient throws DeepSeekAuthError for 401 and 403", async () => {
-  const fetchImpl: FetchLike = async () => new Response("bad key", { status: 401 });
-  const client = new DeepSeekFimClient({ apiKey: "sk-test", fetch: fetchImpl });
+  for (const status of [401, 403]) {
+    const fetchImpl: FetchLike = async () => new Response("bad key", { status });
+    const client = new DeepSeekFimClient({ apiKey: "sk-test", fetch: fetchImpl });
 
-  await assert.rejects(
-    () => client.complete({ beforeCursor: "hello", afterCursor: "", recentContext: "" }, new AbortController().signal),
-    DeepSeekAuthError,
-  );
+    await assert.rejects(
+      () => client.complete({ beforeCursor: "hello", afterCursor: "", recentContext: "" }, new AbortController().signal),
+      DeepSeekAuthError,
+    );
+  }
 });
 
 test("DeepSeekFimClient throws DeepSeekTransientError for rate limits", async () => {
