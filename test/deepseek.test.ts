@@ -80,3 +80,83 @@ test("DeepSeekFimClient cleans suffix duplication from returned text", async () 
 
   assert.equal(result, undefined);
 });
+
+test("DeepSeekFimClient throws DeepSeekTransientError for malformed successful JSON", async () => {
+  const fetchImpl: FetchLike = async () => new Response("not json", { status: 200 });
+  const client = new DeepSeekFimClient({ apiKey: "sk-test", fetch: fetchImpl });
+
+  await assert.rejects(
+    () => client.complete({ beforeCursor: "hello", afterCursor: "", recentContext: "" }, new AbortController().signal),
+    DeepSeekTransientError,
+  );
+});
+
+test("DeepSeekFimClient throws DeepSeekTransientError for null successful JSON", async () => {
+  const fetchImpl: FetchLike = async () => new Response("null", { status: 200 });
+  const client = new DeepSeekFimClient({ apiKey: "sk-test", fetch: fetchImpl });
+
+  await assert.rejects(
+    () => client.complete({ beforeCursor: "hello", afterCursor: "", recentContext: "" }, new AbortController().signal),
+    DeepSeekTransientError,
+  );
+});
+
+test("DeepSeekFimClient returns undefined when successful JSON has no choices", async () => {
+  const fetchImpl: FetchLike = async () => new Response(JSON.stringify({}), { status: 200 });
+  const client = new DeepSeekFimClient({ apiKey: "sk-test", fetch: fetchImpl });
+
+  const result = await client.complete({ beforeCursor: "hello", afterCursor: "", recentContext: "" }, new AbortController().signal);
+
+  assert.equal(result, undefined);
+});
+
+test("DeepSeekFimClient returns undefined when the first choice text is not a string", async () => {
+  const fetchImpl: FetchLike = async () => new Response(JSON.stringify({ choices: [{ text: 42 }] }), { status: 200 });
+  const client = new DeepSeekFimClient({ apiKey: "sk-test", fetch: fetchImpl });
+
+  const result = await client.complete({ beforeCursor: "hello", afterCursor: "", recentContext: "" }, new AbortController().signal);
+
+  assert.equal(result, undefined);
+});
+
+test("DeepSeekFimClient throws DeepSeekTransientError for network fetch failures", async () => {
+  const fetchImpl: FetchLike = async () => {
+    throw new TypeError("fetch failed");
+  };
+  const client = new DeepSeekFimClient({ apiKey: "sk-test", fetch: fetchImpl });
+
+  await assert.rejects(
+    () => client.complete({ beforeCursor: "hello", afterCursor: "", recentContext: "" }, new AbortController().signal),
+    DeepSeekTransientError,
+  );
+});
+
+test("DeepSeekFimClient propagates fetch abort errors without wrapping", async () => {
+  const abortError = new DOMException("The operation was aborted", "AbortError");
+  const fetchImpl: FetchLike = async () => {
+    throw abortError;
+  };
+  const client = new DeepSeekFimClient({ apiKey: "sk-test", fetch: fetchImpl });
+
+  await assert.rejects(
+    () => client.complete({ beforeCursor: "hello", afterCursor: "", recentContext: "" }, new AbortController().signal),
+    (error: unknown) => {
+      assert.equal(error, abortError);
+      return true;
+    },
+  );
+});
+
+test("DeepSeekFimClient forwards the provided abort signal to fetch", async () => {
+  const controller = new AbortController();
+  let capturedSignal: AbortSignal | null | undefined;
+  const fetchImpl: FetchLike = async (_url, init) => {
+    capturedSignal = init.signal;
+    return new Response(JSON.stringify({ choices: [{ text: " world" }] }), { status: 200 });
+  };
+  const client = new DeepSeekFimClient({ apiKey: "sk-test", fetch: fetchImpl });
+
+  await client.complete({ beforeCursor: "hello", afterCursor: "", recentContext: "" }, controller.signal);
+
+  assert.equal(capturedSignal, controller.signal);
+});
