@@ -97,7 +97,13 @@ export class DeepSeekFimClient implements PredictionService {
       throw new DeepSeekTransientError(0, `Network error: ${errorMessage(error)}`);
     }
 
-    const body = await response.text();
+    let body: string;
+    try {
+      body = await response.text();
+    } catch (error) {
+      if (isAbortError(error)) throw error;
+      throw new DeepSeekTransientError(0, `Network error: ${errorMessage(error)}`);
+    }
     if (response.status === 401 || response.status === 403) {
       throw new DeepSeekAuthError(response.status, body);
     }

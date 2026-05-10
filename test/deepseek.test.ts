@@ -4,6 +4,17 @@ import { test } from "node:test";
 import { DEEPSEEK_FIM_ENDPOINT, DEEPSEEK_MODEL } from "../src/config.ts";
 import { DeepSeekAuthError, DeepSeekFimClient, DeepSeekTransientError, type FetchLike } from "../src/deepseek.ts";
 
+function responseWithErroredBody(error: unknown): Response {
+  return new Response(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.error(error);
+      },
+    }),
+    { status: 200 },
+  );
+}
+
 test("DeepSeekFimClient sends an OpenAI-compatible FIM completion request", async () => {
   let capturedUrl = "";
   let capturedHeaders: Headers | undefined;
@@ -128,6 +139,30 @@ test("DeepSeekFimClient throws DeepSeekTransientError for network fetch failures
   await assert.rejects(
     () => client.complete({ beforeCursor: "hello", afterCursor: "", recentContext: "" }, new AbortController().signal),
     DeepSeekTransientError,
+  );
+});
+
+test("DeepSeekFimClient normalizes body read failures as DeepSeekTransientError", async () => {
+  const fetchImpl: FetchLike = async () => responseWithErroredBody(new TypeError("body stream failed"));
+  const client = new DeepSeekFimClient({ apiKey: "sk-test", fetch: fetchImpl });
+
+  await assert.rejects(
+    () => client.complete({ beforeCursor: "hello", afterCursor: "", recentContext: "" }, new AbortController().signal),
+    DeepSeekTransientError,
+  );
+});
+
+test("DeepSeekFimClient propagates body read abort errors without wrapping", async () => {
+  const abortError = new DOMException("The body read was aborted", "AbortError");
+  const fetchImpl: FetchLike = async () => responseWithErroredBody(abortError);
+  const client = new DeepSeekFimClient({ apiKey: "sk-test", fetch: fetchImpl });
+
+  await assert.rejects(
+    () => client.complete({ beforeCursor: "hello", afterCursor: "", recentContext: "" }, new AbortController().signal),
+    (error: unknown) => {
+      assert.equal(error, abortError);
+      return true;
+    },
   );
 });
 
