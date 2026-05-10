@@ -45,6 +45,19 @@ test("cleanCompletion removes markdown fences", () => {
   assert.equal(cleanCompletion("```text\nhello\n```", ""), "hello");
 });
 
+test("cleanCompletion removes markdown fences with trailing whitespace", () => {
+  assert.equal(cleanCompletion("```text\nhello\n```\n", ""), "hello");
+  assert.equal(cleanCompletion("```text\nhello\n```  \n", ""), "hello");
+});
+
+test("cleanCompletion removes Sure prefix without stripping indentation", () => {
+  assert.equal(cleanCompletion("Sure:\n  hello", ""), "  hello");
+});
+
+test("cleanCompletion removes Here is prefix without stripping indentation", () => {
+  assert.equal(cleanCompletion("Here is the completion:\n  hello", ""), "  hello");
+});
+
 test("cleanCompletion drops whitespace-only responses", () => {
   assert.equal(cleanCompletion("\n   \n", ""), undefined);
 });
@@ -52,6 +65,12 @@ test("cleanCompletion drops whitespace-only responses", () => {
 test("removeSuffixOverlap removes text already present after cursor", () => {
   assert.equal(removeSuffixOverlap(" world", " world and more"), "");
   assert.equal(removeSuffixOverlap(" brave new", " new prompt"), " brave");
+});
+
+test("removeSuffixOverlap removes overlaps longer than 200 characters", () => {
+  const overlap = "x".repeat(250);
+
+  assert.equal(removeSuffixOverlap(`prefix-${overlap}`, `${overlap}-suffix`), "prefix-");
 });
 
 test("cleanCompletion applies suffix overlap removal", () => {

@@ -35,12 +35,11 @@ export function hasEnoughInput(text: string, minNonWhitespace = 3): boolean {
 export function removeSuffixOverlap(completion: string, suffix: string): string {
   if (!completion || !suffix) return completion;
 
-  const suffixPrefix = suffix.slice(0, Math.min(suffix.length, 200));
-  if (suffixPrefix.startsWith(completion)) return "";
+  if (suffix.startsWith(completion)) return "";
 
-  const maxOverlap = Math.min(completion.length, suffixPrefix.length);
+  const maxOverlap = Math.min(completion.length, suffix.length);
   for (let length = maxOverlap; length > 0; length--) {
-    if (completion.endsWith(suffixPrefix.slice(0, length))) {
+    if (completion.endsWith(suffix.slice(0, length))) {
       return completion.slice(0, completion.length - length);
     }
   }
@@ -49,11 +48,11 @@ export function removeSuffixOverlap(completion: string, suffix: string): string 
 }
 
 function removeMarkdownFence(text: string): string {
-  return text.replace(/^```[a-zA-Z0-9_-]*\n?/, "").replace(/\n?```$/, "");
+  return text.replace(/^```[a-zA-Z0-9_-]*\n?/, "").replace(/\n?```\s*$/, "");
 }
 
 function removeExplanatoryPrefix(text: string): string {
-  return text.replace(/^(?:Sure[:,]?|Here(?:'s| is)\s+[^:\n]{0,40}:)\s*/i, "");
+  return text.replace(/^(?:Sure[:,]?|Here(?:'s| is)\s+[^:\n]{0,40}:)[ \t]*(?:\n)?/i, "");
 }
 
 export function cleanCompletion(
