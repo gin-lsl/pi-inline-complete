@@ -5,6 +5,9 @@
   "type": "module",
   "keywords": ["pi-package", "pi", "extension", "deepseek", "autocomplete"],
   "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "files": ["extensions", "src", "README.md"],
   "pi": {
     "extensions": ["./extensions/inline-complete.ts"]
