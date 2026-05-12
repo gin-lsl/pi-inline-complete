@@ -11,8 +11,8 @@ import {
   DEFAULT_MIN_NON_WHITESPACE,
   DEFAULT_REQUEST_TIMEOUT_MS,
 } from "./config.ts";
-import { buildRecentConversationContext } from "./context.ts";
-import { DeepSeekAuthError, DeepSeekFimClient } from "./deepseek.ts";
+import { buildConversationMessages, buildRecentConversationContext } from "./context.ts";
+import { DeepSeekAuthError, DeepSeekChatPrefixClient, DeepSeekFimClient } from "./deepseek.ts";
 import { renderGhostText } from "./ghost-render.ts";
 import { hasEnoughInput, splitAtCursor } from "./text.ts";
 import type { EditorSnapshot, PredictionService } from "./types.ts";
@@ -172,12 +172,15 @@ export class InlineCompletionEditor extends CustomEditor {
     const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
 
     try {
-      const recentContext = buildRecentConversationContext(this.ctx.sessionManager.getBranch());
+      const branchEntries = this.ctx.sessionManager.getBranch();
+      const recentContext = buildRecentConversationContext(branchEntries);
+      const conversationMessages = buildConversationMessages(branchEntries);
       const completion = await this.predictionService.complete(
         {
           beforeCursor: snapshot.beforeCursor,
           afterCursor: snapshot.afterCursor,
           recentContext,
+          conversationMessages,
         },
         controller.signal,
       );
@@ -223,13 +226,22 @@ export class InlineCompletionEditor extends CustomEditor {
   }
 }
 
-export async function installInlineCompletion(ctx: ExtensionContext, predictionService?: PredictionService): Promise<void> {
+export type CompletionMode = "fim" | "chat_prefix";
+
+export async function installInlineCompletion(
+  ctx: ExtensionContext,
+  predictionService?: PredictionService,
+  mode?: CompletionMode,
+): Promise<void> {
   if (!ctx.hasUI) return;
 
   let service = predictionService;
   if (!service) {
     const apiKey = await ctx.modelRegistry.getApiKeyForProvider("deepseek");
-    service = new DeepSeekFimClient(apiKey ? { apiKey } : {});
+    const actualMode = mode ?? "fim";
+    service = actualMode === "chat_prefix"
+      ? new DeepSeekChatPrefixClient(apiKey ? { apiKey } : {})
+      : new DeepSeekFimClient(apiKey ? { apiKey } : {});
   }
 
   ctx.ui.setEditorComponent((tui, theme, keybindings) =>

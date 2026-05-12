@@ -1,4 +1,5 @@
 export const DEEPSEEK_FIM_ENDPOINT = "https://api.deepseek.com/beta/completions";
+export const DEEPSEEK_CHAT_PREFIX_ENDPOINT = "https://api.deepseek.com/beta/chat/completions";
 export const DEEPSEEK_MODEL = "deepseek-v4-flash";
 export const DEFAULT_DEBOUNCE_MS = 600;
 export const DEFAULT_MAX_TOKENS = 64;

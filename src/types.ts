@@ -11,10 +11,17 @@ export interface EditorSnapshot {
   key: string;
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface PredictionRequest {
   beforeCursor: string;
   afterCursor: string;
   recentContext: string;
+  /** Structured conversation messages for chat-based APIs (e.g. DeepSeek chat_prefix_completion) */
+  conversationMessages?: ChatMessage[];
 }
 
 export interface PredictionService {

@@ -1,4 +1,5 @@
 import { DEFAULT_RECENT_CONTEXT_CHARS, DEFAULT_RECENT_CONTEXT_MESSAGES } from "./config.ts";
+import type { ChatMessage } from "./types.ts";
 
 type TextBlock = { type?: unknown; text?: unknown };
 type UnknownRecord = Record<string, unknown>;
@@ -66,6 +67,33 @@ export function buildRecentConversationContext(
   }
 
   return `[Recent conversation context]\n${body}`;
+}
+
+export function buildConversationMessages(
+  branchEntries: readonly unknown[],
+  options: RecentContextOptions = {},
+): ChatMessage[] {
+  const maxMessages = normalizeLimit(options.maxMessages, DEFAULT_RECENT_CONTEXT_MESSAGES);
+  if (maxMessages === 0) return [];
+
+  const messages: ChatMessage[] = [];
+
+  for (const rawEntry of branchEntries) {
+    if (!isRecord(rawEntry) || rawEntry.type !== "message") continue;
+
+    const message = rawEntry.message;
+    if (!isRecord(message)) continue;
+
+    const role = typeof message.role === "string" ? message.role : "";
+    if (role !== "user" && role !== "assistant") continue;
+
+    const text = contentToText(message.content).trim();
+    if (!text) continue;
+
+    messages.push({ role, content: text });
+  }
+
+  return messages.slice(-maxMessages);
 }
 
 export function buildFimPrompt(recentContext: string, beforeCursor: string): string {
