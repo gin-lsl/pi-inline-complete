@@ -10,6 +10,8 @@ import {
   DEFAULT_DEBOUNCE_MS,
   DEFAULT_MIN_NON_WHITESPACE,
   DEFAULT_REQUEST_TIMEOUT_MS,
+  type CompletionMode,
+  resolveCompletionMode,
 } from "./config.ts";
 import { buildConversationMessages, buildRecentConversationContext } from "./context.ts";
 import { DeepSeekAuthError, DeepSeekChatPrefixClient, DeepSeekFimClient } from "./deepseek.ts";
@@ -226,8 +228,6 @@ export class InlineCompletionEditor extends CustomEditor {
   }
 }
 
-export type CompletionMode = "fim" | "chat_prefix";
-
 export async function installInlineCompletion(
   ctx: ExtensionContext,
   predictionService?: PredictionService,
@@ -238,7 +238,7 @@ export async function installInlineCompletion(
   let service = predictionService;
   if (!service) {
     const apiKey = await ctx.modelRegistry.getApiKeyForProvider("deepseek");
-    const actualMode = mode ?? "fim";
+    const actualMode = resolveCompletionMode(mode ?? process.env.DEEPSEEK_COMPLETION_MODE);
     service = actualMode === "chat_prefix"
       ? new DeepSeekChatPrefixClient(apiKey ? { apiKey } : {})
       : new DeepSeekFimClient(apiKey ? { apiKey } : {});

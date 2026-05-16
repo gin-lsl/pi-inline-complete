@@ -9,3 +9,14 @@ export const DEFAULT_MIN_NON_WHITESPACE = 3;
 export const DEFAULT_RECENT_CONTEXT_CHARS = 4_000;
 export const DEFAULT_RECENT_CONTEXT_MESSAGES = 8;
 export const DEFAULT_MAX_COMPLETION_CHARS = 600;
+
+export type CompletionMode = "fim" | "chat_prefix";
+
+export const SUPPORTED_MODES: CompletionMode[] = ["fim", "chat_prefix"];
+
+export function resolveCompletionMode(env?: string): CompletionMode {
+  if (env && (env === "fim" || env === "chat_prefix")) {
+    return env;
+  }
+  return "fim";
+}
