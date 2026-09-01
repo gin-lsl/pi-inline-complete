@@ -126,6 +126,12 @@ export class InlineCompletionEditor extends CustomEditor {
   }
 
   private hasValidPrediction(snapshot = this.currentSnapshot()): boolean {
+    // While pi's own autocomplete dropdown is showing (slash commands, @/#
+    // mentions, …), Tab belongs to that dropdown: it confirms the highlighted
+    // item. A prediction must neither be rendered nor accepted by Tab then, so
+    // treat it as invalid until the dropdown is dismissed. Mirrors how
+    // CustomEditor gates Escape on isShowingAutocomplete().
+    if (this.isShowingAutocomplete()) return false;
     return this.prediction !== undefined && this.prediction.snapshotKey === snapshot.key;
   }
 
